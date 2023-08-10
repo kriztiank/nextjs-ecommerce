@@ -57,12 +57,10 @@ export async function createCart(): Promise<ShoppingCart> {
   let newCart: Cart;
 
   if (session) {
-    // if user is logged in, create a cart connected to this user
     newCart = await prisma.cart.create({
       data: { userId: session.user.id },
     });
   } else {
-    // if user is not logged in, create an anonymous cart
     newCart = await prisma.cart.create({
       data: {},
     });
@@ -104,12 +102,18 @@ export async function mergeAnonymousCartIntoUserCart(userId: string) {
         where: { cartId: userCart.id },
       });
 
-      await tx.cartItem.createMany({
-        data: mergedCartItems.map((item) => ({
-          cartId: userCart.id,
-          productId: item.productId,
-          quantity: item.quantity,
-        })),
+      await tx.cart.update({
+        where: { id: userCart.id },
+        data: {
+          items: {
+            createMany: {
+              data: mergedCartItems.map((item) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+              })),
+            },
+          },
+        },
       });
     } else {
       await tx.cart.create({
